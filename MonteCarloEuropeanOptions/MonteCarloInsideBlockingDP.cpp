@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019-2020 
+Copyright (c) 2019-2020
 Intel Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
@@ -13,15 +13,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <cstdarg>
 #include <cerrno>
 #include <ctime>
+#if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
+#include <mathimf.h>
+#else
+#include <cmath>
+#endif
 #include <tbb/scalable_allocator.h>
 #include <omp.h>
 
-#ifdef __INTEL_COMPILER
-#include <mathimf.h>
-#endif
-
 #include <mkl_vsl.h>
 #include <mkl_service.h>
+
+#ifndef M_LOG2E
+#define M_LOG2E 1.44269504088896340736
+#endif
 
 /******* VERSION *******/
 #define MAJOR 1
@@ -197,7 +202,7 @@ int main(int argc, char* argv[])
 
     for(int ITER=0; ITER<NUM_ITERS ;ITER++)
     {
-    
+
 #pragma omp parallel reduction(+ : sum_delta) reduction(+ : sum_ref) reduction(+ : sumReserve) reduction(max : max_delta)
         {
 #ifdef _OPENMP
@@ -212,10 +217,10 @@ int main(int argc, char* argv[])
             double *StockPriceList     = (double *)scalable_aligned_malloc(mem_size, SIMDALIGN);
             double *OptionStrikeList   = (double *)scalable_aligned_malloc(mem_size, SIMDALIGN);
             double *OptionYearsList    = (double *)scalable_aligned_malloc(mem_size, SIMDALIGN);
-        
+
             float *samples;
             VSLStreamStatePtr rngStream;
-    
+
             for(int i = 0; i < OPT_PER_THREAD; i++)
             {
                 CallResultList[i]     = 0.0;
@@ -225,15 +230,15 @@ int main(int argc, char* argv[])
                 OptionYearsList[i]    = RandFloat_T(1.0, 5.0, &randseed);
             }
             samples = (float *)scalable_aligned_malloc(RAND_BLOCK_LENGTH * sizeof(float), SIMDALIGN);
-        
-            vslNewStream(&rngStream, VSL_BRNG_SFMT19937, RANDSEED + threadID); 
-    
+
+            vslNewStream(&rngStream, VSL_BRNG_SFMT19937, RANDSEED + threadID);
+
     #pragma omp barrier
             if (threadID == 0)
             {
                 sTime = second();
             }
-    
+
             for(int opt = 0; opt < OPT_PER_THREAD; opt++)
             {
                 const double VBySqrtT = VLog2E * sqrt(OptionYearsList[opt]);
@@ -241,21 +246,21 @@ int main(int argc, char* argv[])
                 const double MuByT    = MuLog2E * OptionYearsList[opt];
                 const double Y        = StockPriceList[opt];
                 const double Z        = OptionStrikeList[opt];
-                    
+
                 double v0 = 0.0;
                 double v1 = 0.0;
                 for(int block = 0; block < nblocks; ++block)
                 {
                     vsRngGaussian (VSL_RNG_METHOD_GAUSSIAN_ICDF, rngStream, RAND_BLOCK_LENGTH, samples, MuByT, VBySqrtT);
-    
-    
+
+
     #pragma omp simd reduction(+:v0) reduction(+:v1)
     #pragma unroll(4)
-                    for(int i=0; i < RAND_BLOCK_LENGTH; i++) 
+                    for(int i=0; i < RAND_BLOCK_LENGTH; i++)
                     {
                         double rngVal = samples[i];
                         double callValue  = Y * exp2(rngVal) - Z;
-        
+
                         if (callValue>0.0)
                         {
                            v0 += callValue;
@@ -267,13 +272,13 @@ int main(int argc, char* argv[])
                 CallResultList[opt]     = exprt * v0 * INV_RAND_N;
                 const double  stdDev   = sqrt((F_RAND_N * v1 - v0 * v0) * STDDEV_DENOM);
                 CallConfidenceList[opt] = (double)(exprt * stdDev * CONFIDENCE_DENOM);
-            } //end of opt 
-    
+            } //end of opt
+
     #pragma omp barrier
             if (threadID == 0) {
                 eTime = second();
             }
-    
+
             if(VERBOSE){
                 double delta = 0.0, ref = 0.0, L1norm = 0.0;
                 int max_index = 0;
@@ -282,9 +287,9 @@ int main(int argc, char* argv[])
                     double callReference = 0.0;
                     BlackScholesRefImpl(callReference,
                                         StockPriceList[i],
-                                        OptionStrikeList[i], 
-                                        OptionYearsList[i],  
-                                        RISKFREE, 
+                                        OptionStrikeList[i],
+                                        OptionYearsList[i],
+                                        RISKFREE,
                                         VOLATILITY );
                     ref   = callReference;
                     delta = fabs(callReference - CallResultList[i]);
@@ -302,11 +307,11 @@ int main(int argc, char* argv[])
             scalable_aligned_free(StockPriceList);
             scalable_aligned_free(OptionStrikeList);
             scalable_aligned_free(OptionYearsList);
-        
+
             vslDeleteStream(&rngStream);
         }//end of parallel block
     }//end of iter loop
-    
+
     if(VERBOSE){
         sumReserve          /= (double)OPT_N;
         const double L1norm  = sum_delta / sum_ref;
@@ -315,7 +320,7 @@ int main(int argc, char* argv[])
         printf("Max Error        = %E\n", max_delta);
         printf(sumReserve > 1.0f ? "Test passed\n" : "Test failed!\n");
     }
-    
+
     printf("==========================================\n");
     printf("Time Elapsed = %lf\n", eTime-sTime);
     printf("Opt/sec      = %lf\n", OPT_N/(eTime-sTime));

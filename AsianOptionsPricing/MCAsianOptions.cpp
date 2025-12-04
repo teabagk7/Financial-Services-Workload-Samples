@@ -100,10 +100,10 @@ void MonteCarloTimeStep(
     double time_init = 0.0;
     double time_RNG = 0.0;
 
-    __declspec(align(64)) tfloat simStepResult[SIMSTEPS + 1][VECLEN];
-    __declspec(align(64)) tfloat volArray[SIMSTEPS + 1][VECLEN];     //Simulated Volatilities
-    __declspec(align(64)) tfloat avgMean[VECLEN];
-    __declspec(align(64)) tfloat callValue[VECLEN];
+    alignas(64) tfloat simStepResult[SIMSTEPS + 1][VECLEN];
+    alignas(64) tfloat volArray[SIMSTEPS + 1][VECLEN];     //Simulated Volatilities
+    alignas(64) tfloat avgMean[VECLEN];
+    alignas(64) tfloat callValue[VECLEN];
 
     timer<timer_enabled> tt;
     timer<timer_enabled> ttRng;

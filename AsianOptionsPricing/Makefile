@@ -7,17 +7,16 @@ CXXFLAGS ?= -std=c++14 -O3 -g -fopenmp
 INCLUDES ?= -I$(MKLROOT)/include
 
 MKL_LIBS ?= -L$(MKLROOT)/lib/intel64 \
-            -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group \
-            -lpthread -lm -ldl
-TBB_LIBS ?= -ltbbmalloc
+             -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -Wl,--end-group \
+             -lpthread -lm -ldl
 
-TARGET ?= BlackScholesDP
-SOURCES := BlackScholesDP.cpp
+TARGET ?= asian-options
+SOURCES := MCAsianOptions.cpp
 
 all: $(TARGET)
 
 $(TARGET): $(SOURCES)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(MKL_LIBS) $(TBB_LIBS)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(MKL_LIBS)
 
 clean:
 	rm -f $(TARGET)

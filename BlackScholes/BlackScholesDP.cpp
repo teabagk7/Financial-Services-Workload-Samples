@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019-2020 
+Copyright (c) 2019-2020
 Intel Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
@@ -34,7 +34,7 @@ const int  NUM_ITERATIONS = 32000;
 const double      RISKFREE = 0.02;
 const double    VOLATILITY = 0.30;
 const double          HALF = 0.5;
-const double RLOG2E =-RISKFREE*M_LOG2E; 
+const double RLOG2E =-RISKFREE*M_LOG2E;
 const double RVV =  (RISKFREE + 0.5 * VOLATILITY * VOLATILITY)/VOLATILITY;
 const double RVLOG2E =  M_LN2 * (1.0/VOLATILITY);
 const double VLOG2E =  M_LOG2E * VOLATILITY;
@@ -44,7 +44,7 @@ const double RVVSQRT1_2  = RVV * M_SQRT1_2;
 const double VOLATILITYSQRT1_2 = VOLATILITY * M_SQRT1_2;
 const double SQRT1_2 = 0.70710678118654752440084436210485;
 
-static double start_sec, end_sec; 
+static double start_sec, end_sec;
 double second()
 {
     struct timeval tv;
@@ -90,7 +90,7 @@ __forceinline void CNDF_C ( double * OutputX, double * InputX )
     double tmp = 0.0;
     int flag=0;
     double    X = *InputX;
-    
+
     if (X < 0.0) {
         X = -X;
         flag=1;
@@ -103,7 +103,7 @@ __forceinline void CNDF_C ( double * OutputX, double * InputX )
     k2_3 = k2_2*k2;
     k2_4 = k2_3*k2;
     k2_5 = k2_4*k2;
-    
+
     *OutputX = 1.0 - ( tmp * ( (  CNDF_C2 * k2 ) +
                                ( ( CNDF_C3  * (k2_2) ) +
                                  ( CNDF_C4  * (k2_3) ) +
@@ -111,7 +111,7 @@ __forceinline void CNDF_C ( double * OutputX, double * InputX )
                                  ( CNDF_C6  * (k2_5) ) ) ) );
     if (flag)
         *OutputX = (1.0 - *OutputX);
-        
+
     return;
 }
 
@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
 {
 	double sum_delta = 0.0, sum_ref = 0.0, L1norm = 0.0;
         unsigned int seed = 123;
-	int verbose = 0; 
+	int verbose = 0;
 	if (argc > 2)
 	{
 		printf("usage: Black-Scholes <verbose> verbose = 1 for validtating result, the default is 0. \n");
@@ -131,12 +131,12 @@ int main(int argc, char* argv[])
 		verbose = atoi(argv[1]);
 #ifdef _OPENMP
 	int ThreadNum = omp_get_max_threads();
-	omp_set_num_threads(ThreadNum); 
+	omp_set_num_threads(ThreadNum);
 #else
-	int ThreadNum = 1; 
+	int ThreadNum = 1;
 #endif
 	int OptPerThread = OPT_N / ThreadNum;
-	int mem_size = sizeof(double) * OptPerThread; 
+	int mem_size = sizeof(double) * OptPerThread;
 	setlocale(LC_ALL,"");
 	printf("Double Precision Black-Scholes Formula, version %d.%d\n", MAJOR, MINOR);
 	printf("Build Time        = %s %s\n", __DATE__, __TIME__);
@@ -152,7 +152,7 @@ int main(int argc, char* argv[])
 #ifdef _OPENMP
 	int threadID = omp_get_thread_num();
 #else
-	int threadID = 0; 
+	int threadID = 0;
 #endif
 	double *CallResult = (double *)scalable_aligned_malloc(mem_size, SIMDALIGN);
 	double *PutResult  = (double *)scalable_aligned_malloc(mem_size, SIMDALIGN);
@@ -178,12 +178,11 @@ int main(int argc, char* argv[])
 #pragma distribute_point
 	    for (int chunkBase = 0; chunkBase < OptPerThread; chunkBase += CHUNKSIZE)
 	    {
-#pragma vector aligned
-#pragma omp simd 
-#pragma vector nontemporal (CallResult, PutResult)
+
+#pragma omp simd
 		for(int opt = chunkBase; opt < (chunkBase+CHUNKSIZE); opt++)
 		{
-			double CNDD1, CNDD2; 
+			double CNDD1, CNDD2;
 			double T = OptionYears[opt];
 			double X = OptionStrike[opt];
 			double S = StockPrice[opt];
